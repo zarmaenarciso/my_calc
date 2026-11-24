@@ -5,6 +5,7 @@ import { ErrorBoundary } from './components/layout/ErrorBoundary'
 import { ProtectedRoute } from './components/layout/ProtectedRoute'
 import { LoginPage } from './features/auth/components/LoginPage'
 import { DashboardPage } from './features/dashboard/components/DashboardPage'
+import { PeoplePage } from './features/people/components/PeoplePage'
 import { ProfilePage } from './features/profile/components/ProfilePage'
 import { queryClient } from './lib/query-client'
 
@@ -18,6 +19,7 @@ export function App() {
             <Route element={<ProtectedRoute />}>
               <Route element={<AppShell />}>
                 <Route path="/" element={<DashboardPage />} />
+                <Route path="/people" element={<PeoplePage />} />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>
             </Route>

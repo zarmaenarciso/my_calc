@@ -10,3 +10,10 @@ export interface UserProfile {
   createdAt?: Timestamp
   updatedAt?: Timestamp
 }
+
+export interface PersonDocument {
+  name: string
+  notes: string
+  createdAt?: Timestamp
+  updatedAt?: Timestamp
+}

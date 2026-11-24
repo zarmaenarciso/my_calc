@@ -6,6 +6,7 @@ import {
   PanelLeftOpen,
   ShieldCheck,
   UserCog,
+  Users,
   X,
 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
@@ -26,6 +27,11 @@ const navItems: NavItem[] = [
     to: '/',
     label: 'Dashboard',
     icon: <LayoutDashboard className="size-4 shrink-0" aria-hidden="true" />,
+  },
+  {
+    to: '/people',
+    label: 'People',
+    icon: <Users className="size-4 shrink-0" aria-hidden="true" />,
   },
   {
     to: '/profile',
