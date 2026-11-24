@@ -1,14 +1,27 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createUserWithEmailAndPassword,
+  EmailAuthProvider,
   onAuthStateChanged,
+  reauthenticateWithCredential,
   signInWithEmailAndPassword,
   signOut,
+  updatePassword,
+  updateProfile,
   type User,
 } from 'firebase/auth'
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { useEffect } from 'react'
-import { auth, isFirebaseConfigured } from '../../lib/firebase'
-import { type AuthCredentials, authCredentialsSchema } from './schemas'
+import { auth, db, isFirebaseConfigured } from '../../lib/firebase'
+import {
+  type SignInInput,
+  signInSchema,
+  type SignUpInput,
+  signUpSchema,
+  type UpdatePasswordInput,
+  updatePasswordSchema,
+  usernameToEmail,
+} from './schemas'
 
 export const authKeys = {
   session: ['auth', 'session'] as const,
@@ -63,11 +76,11 @@ export function useSignIn() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (credentials: AuthCredentials) => {
-      const parsed = authCredentialsSchema.parse(credentials)
+    mutationFn: async (input: SignInInput) => {
+      const parsed = signInSchema.parse(input)
       const credential = await signInWithEmailAndPassword(
         auth,
-        parsed.email,
+        usernameToEmail(parsed.username),
         parsed.password,
       )
       return credential.user
@@ -85,13 +98,25 @@ export function useSignUp() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (credentials: AuthCredentials) => {
-      const parsed = authCredentialsSchema.parse(credentials)
+    mutationFn: async (input: SignUpInput) => {
+      const parsed = signUpSchema.parse(input)
       const credential = await createUserWithEmailAndPassword(
         auth,
-        parsed.email,
+        usernameToEmail(parsed.username),
         parsed.password,
       )
+
+      await updateProfile(credential.user, {
+        displayName: parsed.name,
+      })
+
+      await setDoc(doc(db, 'profiles', credential.user.uid), {
+        name: parsed.name,
+        username: parsed.username,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+
       return credential.user
     },
     onSuccess: (user) => {
@@ -99,6 +124,25 @@ export function useSignUp() {
         user,
         isConfigured: true,
       })
+    },
+  })
+}
+
+export function useUpdatePassword() {
+  return useMutation({
+    mutationFn: async (input: UpdatePasswordInput) => {
+      const parsed = updatePasswordSchema.parse(input)
+      const currentUser = auth.currentUser
+      if (!currentUser || !currentUser.email) {
+        throw new Error('You must be signed in to update your password.')
+      }
+
+      const credential = EmailAuthProvider.credential(
+        currentUser.email,
+        parsed.currentPassword,
+      )
+      await reauthenticateWithCredential(currentUser, credential)
+      await updatePassword(currentUser, parsed.newPassword)
     },
   })
 }
@@ -115,6 +159,7 @@ export function useSignOut() {
         user: null,
         isConfigured: true,
       })
+      queryClient.removeQueries({ queryKey: ['profile'] })
     },
   })
 }

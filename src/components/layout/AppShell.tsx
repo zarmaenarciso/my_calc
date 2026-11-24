@@ -1,16 +1,17 @@
 import {
   LayoutDashboard,
-  LogIn,
   LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
   ShieldCheck,
+  UserCog,
   X,
 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router'
 import { useAuthSession, useSignOut } from '../../features/auth/api'
+import { emailToUsername } from '../../features/auth/schemas'
 import { cn } from '../../lib/utils'
 import { Button } from '../ui/Button'
 
@@ -26,22 +27,28 @@ const navItems: NavItem[] = [
     label: 'Dashboard',
     icon: <LayoutDashboard className="size-4 shrink-0" aria-hidden="true" />,
   },
+  {
+    to: '/profile',
+    label: 'Profile',
+    icon: <UserCog className="size-4 shrink-0" aria-hidden="true" />,
+  },
 ]
 
 export function AppShell() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { data: auth, isLoading } = useAuthSession()
+  const { data: auth } = useAuthSession()
   const signOut = useSignOut()
   const navigate = useNavigate()
 
-  const userEmail = auth?.user?.email
+  const userLabel =
+    auth?.user?.displayName || emailToUsername(auth?.user?.email) || 'Account'
 
   const handleSignOut = () => {
     signOut.mutate(undefined, {
       onSuccess: () => {
         setMobileMenuOpen(false)
-        void navigate('/login')
+        void navigate('/login', { replace: true })
       },
     })
   }
@@ -59,7 +66,10 @@ export function AppShell() {
         <div className="flex h-14 items-center justify-between border-b border-slate-200 px-3 dark:border-slate-800">
           {!sidebarCollapsed ? (
             <span className="flex items-center gap-2 font-semibold tracking-tight">
-              <ShieldCheck className="size-5 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
+              <ShieldCheck
+                className="size-5 text-indigo-600 dark:text-indigo-400"
+                aria-hidden="true"
+              />
               <span>Calc App</span>
             </span>
           ) : null}
@@ -84,7 +94,7 @@ export function AppShell() {
             <NavLink
               key={item.to}
               to={item.to}
-              end
+              end={item.to === '/'}
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
@@ -103,41 +113,27 @@ export function AppShell() {
         </nav>
 
         <div className="border-t border-slate-200 p-2 dark:border-slate-800">
-          {isLoading ? null : userEmail ? (
-            <div className="space-y-2">
-              {!sidebarCollapsed ? (
-                <p className="truncate px-2 text-xs text-slate-500 dark:text-slate-400">
-                  {userEmail}
-                </p>
-              ) : null}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSignOut}
-                isLoading={signOut.isPending}
-                aria-label="Sign out"
-                className={cn(
-                  'w-full justify-start',
-                  sidebarCollapsed && 'justify-center px-0',
-                )}
-              >
-                <LogOut className="size-4 shrink-0" aria-hidden="true" />
-                {!sidebarCollapsed ? <span>Sign out</span> : null}
-              </Button>
-            </div>
-          ) : (
-            <NavLink
-              to="/login"
+          <div className="space-y-2">
+            {!sidebarCollapsed ? (
+              <p className="truncate px-2 text-xs font-medium text-slate-600 dark:text-slate-400">
+                {userLabel}
+              </p>
+            ) : null}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+              isLoading={signOut.isPending}
+              aria-label="Sign out"
               className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/60',
-                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500',
-                sidebarCollapsed && 'justify-center px-2',
+                'w-full justify-start',
+                sidebarCollapsed && 'justify-center px-0',
               )}
             >
-              <LogIn className="size-4 shrink-0" aria-hidden="true" />
-              {!sidebarCollapsed ? <span>Sign in</span> : null}
-            </NavLink>
-          )}
+              <LogOut className="size-4 shrink-0" aria-hidden="true" />
+              {!sidebarCollapsed ? <span>Sign out</span> : null}
+            </Button>
+          </div>
         </div>
       </aside>
 
@@ -146,13 +142,18 @@ export function AppShell() {
         {/* Mobile Top Header */}
         <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur-sm md:hidden dark:border-slate-800 dark:bg-slate-900/90">
           <span className="flex items-center gap-2 font-semibold tracking-tight">
-            <ShieldCheck className="size-5 text-indigo-600 dark:text-indigo-400" aria-hidden="true" />
+            <ShieldCheck
+              className="size-5 text-indigo-600 dark:text-indigo-400"
+              aria-hidden="true"
+            />
             <span>Calc App</span>
           </span>
           <Button
             variant="ghost"
             size="sm"
-            aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-label={
+              mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'
+            }
             aria-expanded={mobileMenuOpen}
             onClick={() => setMobileMenuOpen((prev) => !prev)}
           >
@@ -175,7 +176,7 @@ export function AppShell() {
                 <NavLink
                   key={item.to}
                   to={item.to}
-                  end
+                  end={item.to === '/'}
                   onClick={() => setMobileMenuOpen(false)}
                   className={({ isActive }) =>
                     cn(
@@ -190,27 +191,16 @@ export function AppShell() {
                   <span>{item.label}</span>
                 </NavLink>
               ))}
-              {userEmail ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleSignOut}
-                  isLoading={signOut.isPending}
-                  className="w-full justify-start"
-                >
-                  <LogOut className="size-4" aria-hidden="true" />
-                  <span>Sign out ({userEmail})</span>
-                </Button>
-              ) : (
-                <NavLink
-                  to="/login"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-400"
-                >
-                  <LogIn className="size-4" aria-hidden="true" />
-                  <span>Sign in</span>
-                </NavLink>
-              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSignOut}
+                isLoading={signOut.isPending}
+                className="w-full justify-start"
+              >
+                <LogOut className="size-4" aria-hidden="true" />
+                <span>Sign out ({userLabel})</span>
+              </Button>
             </div>
           </nav>
         ) : null}
@@ -228,7 +218,7 @@ export function AppShell() {
             <NavLink
               key={item.to}
               to={item.to}
-              end
+              end={item.to === '/'}
               className={({ isActive }) =>
                 cn(
                   'flex flex-col items-center gap-0.5 rounded-md px-3 py-1 text-xs font-medium',
@@ -242,20 +232,6 @@ export function AppShell() {
               <span>{item.label}</span>
             </NavLink>
           ))}
-          <NavLink
-            to="/login"
-            className={({ isActive }) =>
-              cn(
-                'flex flex-col items-center gap-0.5 rounded-md px-3 py-1 text-xs font-medium',
-                isActive
-                  ? 'text-indigo-600 dark:text-indigo-400'
-                  : 'text-slate-500 dark:text-slate-400',
-              )
-            }
-          >
-            <LogIn className="size-4 shrink-0" aria-hidden="true" />
-            <span>{userEmail ? 'Account' : 'Sign in'}</span>
-          </NavLink>
         </nav>
       </div>
     </div>

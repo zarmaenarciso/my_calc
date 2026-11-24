@@ -5,8 +5,8 @@ import type { Timestamp } from 'firebase/firestore'
  * Keep collection document interfaces aligned with `firestore.rules` and Zod schemas.
  */
 export interface UserProfile {
-  displayName: string | null
-  avatarUrl: string | null
-  createdAt: Timestamp
-  updatedAt: Timestamp
+  name: string
+  username: string
+  createdAt?: Timestamp
+  updatedAt?: Timestamp
 }

@@ -7,10 +7,10 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow create: if request.auth != null
         && request.auth.uid == userId
-        && request.resource.data.keys().hasOnly(['displayName', 'avatarUrl', 'createdAt', 'updatedAt']);
+        && request.resource.data.keys().hasOnly(['name', 'username', 'createdAt', 'updatedAt']);
       allow update: if request.auth != null
         && request.auth.uid == userId
-        && request.resource.data.keys().hasOnly(['displayName', 'avatarUrl', 'createdAt', 'updatedAt']);
+        && request.resource.data.keys().hasOnly(['name', 'username', 'createdAt', 'updatedAt']);
       allow delete: if request.auth != null && request.auth.uid == userId;
     }
 
