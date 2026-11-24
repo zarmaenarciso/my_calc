@@ -4,6 +4,7 @@ import { AppShell } from './components/layout/AppShell'
 import { ErrorBoundary } from './components/layout/ErrorBoundary'
 import { ProtectedRoute } from './components/layout/ProtectedRoute'
 import { LoginPage } from './features/auth/components/LoginPage'
+import { BanksPage } from './features/banks/components/BanksPage'
 import { DashboardPage } from './features/dashboard/components/DashboardPage'
 import { PeoplePage } from './features/people/components/PeoplePage'
 import { PersonDetailPage } from './features/people/components/PersonDetailPage'
@@ -22,6 +23,7 @@ export function App() {
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/people" element={<PeoplePage />} />
                 <Route path="/people/:personId" element={<PersonDetailPage />} />
+                <Route path="/banks" element={<BanksPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>
             </Route>

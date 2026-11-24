@@ -1,4 +1,5 @@
 import {
+  Landmark,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -32,6 +33,11 @@ const navItems: NavItem[] = [
     to: '/people',
     label: 'People',
     icon: <Users className="size-4 shrink-0" aria-hidden="true" />,
+  },
+  {
+    to: '/banks',
+    label: 'Banks',
+    icon: <Landmark className="size-4 shrink-0" aria-hidden="true" />,
   },
   {
     to: '/profile',

@@ -30,6 +30,16 @@ service cloud.firestore {
       );
     }
 
+    // Per-user bank items
+    match /users/{userId}/banks/{bankId} {
+      allow read, delete: if isSuperUser() || (isSignedIn() && request.auth.uid == userId);
+      allow create, update: if isSuperUser() || (
+        isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['name', 'createdAt', 'updatedAt'])
+      );
+    }
+
     // Per-user collection of people
     match /users/{userId}/people/{personId} {
       allow read, delete: if isSuperUser() || (isSignedIn() && request.auth.uid == userId);

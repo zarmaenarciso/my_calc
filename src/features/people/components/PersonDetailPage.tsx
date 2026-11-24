@@ -12,6 +12,7 @@ import {
 import { Input } from '../../../components/ui/Input'
 import { Modal } from '../../../components/ui/Modal'
 import { useAuthSession } from '../../auth/api'
+import { useBanks } from '../../banks/api'
 import {
   useCreatePersonRecord,
   useDeletePersonRecord,
@@ -30,6 +31,7 @@ export function PersonDetailPage() {
   const uid = auth?.user?.uid
 
   const { data: person, isLoading: isPersonLoading } = usePerson(uid, personId)
+  const { data: banks = [] } = useBanks(uid)
   const {
     data: records = [],
     isLoading: isRecordsLoading,
@@ -248,16 +250,55 @@ export function PersonDetailPage() {
             description={`Add a record for ${person.name}.`}
           >
             <form onSubmit={handleSubmit} noValidate className="space-y-4">
-              <Input
-                label="Item"
-                type="text"
-                name="item"
-                placeholder="Enter item name"
-                value={item}
-                onChange={(e) => setItem(e.target.value)}
-                error={fieldErrors.item}
-                disabled={createRecord.isPending}
-              />
+              {banks.length > 0 ? (
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="record-item-select"
+                    className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+                  >
+                    Item
+                  </label>
+                  <select
+                    id="record-item-select"
+                    name="item"
+                    value={item}
+                    onChange={(e) => setItem(e.target.value)}
+                    disabled={createRecord.isPending}
+                    aria-invalid={Boolean(fieldErrors.item)}
+                    className={`block w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-indigo-500 dark:bg-slate-950 dark:text-slate-100 ${
+                      fieldErrors.item
+                        ? 'border-rose-500 dark:border-rose-500'
+                        : 'border-slate-300 dark:border-slate-700'
+                    }`}
+                  >
+                    <option value="">Select a bank...</option>
+                    {banks.map((bank) => (
+                      <option key={bank.id} value={bank.name}>
+                        {bank.name}
+                      </option>
+                    ))}
+                  </select>
+                  {fieldErrors.item ? (
+                    <p
+                      role="alert"
+                      className="text-xs text-rose-600 dark:text-rose-400"
+                    >
+                      {fieldErrors.item}
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <Input
+                  label="Item"
+                  type="text"
+                  name="item"
+                  placeholder="Enter item name"
+                  value={item}
+                  onChange={(e) => setItem(e.target.value)}
+                  error={fieldErrors.item}
+                  disabled={createRecord.isPending}
+                />
+              )}
 
               <Input
                 label="Date"

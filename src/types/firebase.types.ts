@@ -11,6 +11,12 @@ export interface UserProfile {
   updatedAt?: Timestamp
 }
 
+export interface BankDocument {
+  name: string
+  createdAt?: Timestamp
+  updatedAt?: Timestamp
+}
+
 export interface PersonDocument {
   name: string
   notes: string
