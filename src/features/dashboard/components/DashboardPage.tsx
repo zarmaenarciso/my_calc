@@ -1,4 +1,4 @@
-import { CheckCircle2, Database, Globe, Lock } from 'lucide-react'
+import { CheckCircle2, Database, Globe, Lock, ShieldAlert } from 'lucide-react'
 import { Link } from 'react-router'
 import { Button } from '../../../components/ui/Button'
 import {
@@ -8,12 +8,13 @@ import {
   CardHeader,
   CardTitle,
 } from '../../../components/ui/Card'
-import { useAuthSession } from '../../auth/api'
+import { useAuthSession, useIsSuperUser } from '../../auth/api'
 import { emailToUsername } from '../../auth/schemas'
 import { useUserProfile } from '../../profile/api'
 
 export function DashboardPage() {
   const { data: auth, isLoading } = useAuthSession()
+  const { data: isSuperUser = false } = useIsSuperUser(auth?.user)
   const { data: profile } = useUserProfile(auth?.user?.uid)
 
   const user = auth?.user ?? null
@@ -60,6 +61,12 @@ export function DashboardPage() {
                 <p className="truncate text-slate-600 dark:text-slate-400">
                   @{username}
                 </p>
+                {isSuperUser ? (
+                  <p className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+                    <ShieldAlert className="size-3.5" aria-hidden="true" />
+                    <span>Superuser (Full Access)</span>
+                  </p>
+                ) : null}
               </div>
             )}
           </CardContent>

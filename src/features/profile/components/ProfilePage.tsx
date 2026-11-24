@@ -8,13 +8,14 @@ import {
   CardTitle,
 } from '../../../components/ui/Card'
 import { Input } from '../../../components/ui/Input'
-import { useAuthSession, useUpdatePassword } from '../../auth/api'
+import { useAuthSession, useIsSuperUser, useUpdatePassword } from '../../auth/api'
 import { updatePasswordSchema } from '../../auth/schemas'
 import { useUpdateUserProfile, useUserProfile } from '../api'
 import { updateProfileSchema } from '../schemas'
 
 export function ProfilePage() {
   const { data: auth } = useAuthSession()
+  const { data: isSuperUser = false } = useIsSuperUser(auth?.user)
   const { data: profile, isLoading: isProfileLoading } = useUserProfile(
     auth?.user?.uid,
   )
@@ -101,12 +102,24 @@ export function ProfilePage() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          Account Settings
-        </h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            Account Settings
+          </h1>
+          {isSuperUser ? (
+            <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+              Superuser
+            </span>
+          ) : null}
+        </div>
         <p className="text-sm text-slate-600 dark:text-slate-400">
           Update your profile details and account password.
         </p>
+        {auth?.user?.uid ? (
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            User UID: <code className="select-all">{auth.user.uid}</code>
+          </p>
+        ) : null}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

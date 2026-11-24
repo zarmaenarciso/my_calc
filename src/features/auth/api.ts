@@ -10,7 +10,7 @@ import {
   updateProfile,
   type User,
 } from 'firebase/auth'
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore'
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { useEffect } from 'react'
 import { auth, db, isFirebaseConfigured } from '../../lib/firebase'
 import {
@@ -25,6 +25,7 @@ import {
 
 export const authKeys = {
   session: ['auth', 'session'] as const,
+  superUser: (uid: string) => ['auth', 'superUser', uid] as const,
 }
 
 export interface AuthState {
@@ -69,6 +70,26 @@ export function useAuthSession() {
     queryKey: authKeys.session,
     queryFn: fetchInitialAuthState,
     staleTime: Number.POSITIVE_INFINITY,
+  })
+}
+
+export function useIsSuperUser(user: User | null | undefined) {
+  return useQuery({
+    queryKey: authKeys.superUser(user?.uid ?? 'anonymous'),
+    enabled: Boolean(user) && isFirebaseConfigured,
+    queryFn: async (): Promise<boolean> => {
+      if (!user) {
+        return false
+      }
+
+      const tokenResult = await user.getIdTokenResult()
+      if (tokenResult.claims.superUser === true) {
+        return true
+      }
+
+      const superUserSnap = await getDoc(doc(db, 'superusers', user.uid))
+      return superUserSnap.exists()
+    },
   })
 }
 
@@ -160,6 +181,8 @@ export function useSignOut() {
         isConfigured: true,
       })
       queryClient.removeQueries({ queryKey: ['profile'] })
+      queryClient.removeQueries({ queryKey: ['people'] })
+      queryClient.removeQueries({ queryKey: ['auth', 'superUser'] })
     },
   })
 }
