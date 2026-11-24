@@ -59,10 +59,12 @@ flowchart LR
    - Add Zod schemas in `src/features/<feature>/schemas.ts` and TypeScript interfaces in `src/types/firebase.types.ts`.
 2. **Update Firestore Security Rules:**
    - Edit `firestore.rules` to grant explicit `read`, `create`, `update`, and `delete` permissions scoped to `request.auth.uid`, keeping the default deny-all rule at the bottom.
-3. **Deploy rules and indexes:**
-   ```bash
-   npx firebase deploy --only firestore
-   ```
+3. **Deploy rules and indexes (manual or automated):**
+   - **Automated (GitHub Actions):** Any push to `main` changing `firestore.rules`, `firestore.indexes.json`, or `firebase.json` automatically deploys via `.github/workflows/deploy-firestore.yml` when `FIREBASE_SERVICE_ACCOUNT_JSON` is added to **GitHub Repository → Settings → Secrets and variables → Actions**.
+   - **Manual:**
+     ```bash
+     npx firebase deploy --only firestore
+     ```
 
 ---
 
