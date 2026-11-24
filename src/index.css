@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
+  html {
+    font-size: clamp(14px, 0.875rem + 0.25vw, 16px);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background-color: #f8fafc;
+    color: #0f172a;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    body {
+      background-color: #020617;
+      color: #f8fafc;
+    }
+  }
+}

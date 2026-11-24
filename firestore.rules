@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // User profiles: strict per-user ownership for read, create, update, and delete
+    match /profiles/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['displayName', 'avatarUrl', 'createdAt', 'updatedAt']);
+      allow update: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['displayName', 'avatarUrl', 'createdAt', 'updatedAt']);
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Default deny-all for any unspecified collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
