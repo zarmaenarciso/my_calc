@@ -164,7 +164,7 @@ export function LoginPage() {
                   type="text"
                   name="name"
                   autoComplete="name"
-                  placeholder="Zarmae"
+                  placeholder="Enter your name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   error={fieldErrors.name}
@@ -179,7 +179,7 @@ export function LoginPage() {
                 autoComplete="username"
                 autoCapitalize="none"
                 spellCheck={false}
-                placeholder="zarmaenarciso"
+                placeholder="Enter your username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 error={fieldErrors.username}
