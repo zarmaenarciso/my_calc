@@ -30,7 +30,7 @@ service cloud.firestore {
       );
     }
 
-    // Per-user collection of people (ready for future nested records)
+    // Per-user collection of people
     match /users/{userId}/people/{personId} {
       allow read, delete: if isSuperUser() || (isSignedIn() && request.auth.uid == userId);
       allow create, update: if isSuperUser() || (
@@ -38,6 +38,16 @@ service cloud.firestore {
         && request.auth.uid == userId
         && request.resource.data.keys().hasOnly(['name', 'notes', 'createdAt', 'updatedAt'])
       );
+
+      // Nested records belonging to a specific person
+      match /records/{recordId} {
+        allow read, delete: if isSuperUser() || (isSignedIn() && request.auth.uid == userId);
+        allow create, update: if isSuperUser() || (
+          isSignedIn()
+          && request.auth.uid == userId
+          && request.resource.data.keys().hasOnly(['item', 'date', 'amount', 'note', 'createdAt', 'updatedAt'])
+        );
+      }
     }
 
     // Superusers have full access across all documents; everyone else is denied by default

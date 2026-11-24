@@ -1,5 +1,14 @@
-import { Pencil, Plus, Search, Trash2, UserRound, X } from 'lucide-react'
+import {
+  ChevronRight,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  UserRound,
+  X,
+} from 'lucide-react'
 import { type FormEvent, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router'
 import { Button } from '../../../components/ui/Button'
 import {
   Card,
@@ -19,6 +28,7 @@ import {
 import { personFormSchema, type PersonItem } from '../schemas'
 
 export function PeoplePage() {
+  const navigate = useNavigate()
   const { data: auth } = useAuthSession()
   const uid = auth?.user?.uid
 
@@ -290,14 +300,26 @@ export function PeoplePage() {
                         </div>
                       </form>
                     ) : (
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div
+                        role="link"
+                        tabIndex={0}
+                        onClick={() => void navigate(`/people/${person.id}`)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            void navigate(`/people/${person.id}`)
+                          }
+                        }}
+                        className="-mx-2 flex cursor-pointer flex-col gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 sm:flex-row sm:items-center sm:justify-between dark:hover:bg-slate-800/50"
+                      >
                         <div className="min-w-0 space-y-0.5">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="truncate font-medium text-slate-900 dark:text-slate-100">
                               {person.name}
                             </p>
-                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-                              Records ready
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                              <span>Open records</span>
+                              <ChevronRight className="size-3" aria-hidden="true" />
                             </span>
                           </div>
                           {person.notes ? (
@@ -307,7 +329,11 @@ export function PeoplePage() {
                           ) : null}
                         </div>
 
-                        <div className="flex shrink-0 items-center gap-2">
+                        <div
+                          className="flex shrink-0 items-center gap-2"
+                          onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => event.stopPropagation()}
+                        >
                           <Button
                             variant="ghost"
                             size="sm"

@@ -6,6 +6,7 @@ import { ProtectedRoute } from './components/layout/ProtectedRoute'
 import { LoginPage } from './features/auth/components/LoginPage'
 import { DashboardPage } from './features/dashboard/components/DashboardPage'
 import { PeoplePage } from './features/people/components/PeoplePage'
+import { PersonDetailPage } from './features/people/components/PersonDetailPage'
 import { ProfilePage } from './features/profile/components/ProfilePage'
 import { queryClient } from './lib/query-client'
 
@@ -20,6 +21,7 @@ export function App() {
               <Route element={<AppShell />}>
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/people" element={<PeoplePage />} />
+                <Route path="/people/:personId" element={<PersonDetailPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>
             </Route>

@@ -17,3 +17,12 @@ export interface PersonDocument {
   createdAt?: Timestamp
   updatedAt?: Timestamp
 }
+
+export interface PersonRecordDocument {
+  item: string
+  date: string
+  amount: number
+  note: string
+  createdAt?: Timestamp
+  updatedAt?: Timestamp
+}
