@@ -64,7 +64,9 @@ export function PersonDetailPage() {
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingRecord, setEditingRecord] = useState<RecordItem | null>(null)
-  const [previewRecord, setPreviewRecord] = useState<RecordItem | null>(null)
+  const [detailRecord, setDetailRecord] = useState<
+    (RecordItem & { runningBalance: number }) | null
+  >(null)
 
   const [item, setItem] = useState('')
   const [type, setType] = useState('')
@@ -504,7 +506,8 @@ export function PersonDetailPage() {
                         {filteredLedger.rows.map((record) => (
                           <tr
                             key={record.id}
-                            className="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
+                            onClick={() => setDetailRecord(record)}
+                            className="cursor-pointer transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
                           >
                             <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400">
                               {record.date}
@@ -513,15 +516,10 @@ export function PersonDetailPage() {
                               <div className="flex items-center gap-2">
                                 <span>{record.item}</span>
                                 {record.imageUrl ? (
-                                  <button
-                                    type="button"
-                                    aria-label={`View image for ${record.item}`}
-                                    onClick={() => setPreviewRecord(record)}
-                                    className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-600 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                                  >
+                                  <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
                                     <ImageIcon className="size-3" aria-hidden="true" />
                                     <span>Image</span>
-                                  </button>
+                                  </span>
                                 ) : null}
                               </div>
                             </td>
@@ -546,7 +544,10 @@ export function PersonDetailPage() {
                             <td className="whitespace-nowrap px-4 py-3 text-right font-mono font-semibold tabular-nums text-slate-900 dark:text-slate-100">
                               {formatAmount(record.runningBalance)}
                             </td>
-                            <td className="px-4 py-3 text-right">
+                            <td
+                              className="px-4 py-3 text-right"
+                              onClick={(event) => event.stopPropagation()}
+                            >
                               <div className="inline-flex items-center justify-end gap-1">
                                 <Button
                                   variant="ghost"
@@ -607,7 +608,11 @@ export function PersonDetailPage() {
                   {/* Mobile Stacked Ledger */}
                   <div className="divide-y divide-slate-200 md:hidden dark:divide-slate-800">
                     {filteredLedger.rows.map((record) => (
-                      <div key={record.id} className="space-y-2 p-4">
+                      <div
+                        key={record.id}
+                        onClick={() => setDetailRecord(record)}
+                        className="cursor-pointer space-y-2 p-4 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
+                      >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
@@ -615,15 +620,10 @@ export function PersonDetailPage() {
                                 {record.item}
                               </p>
                               {record.imageUrl ? (
-                                <button
-                                  type="button"
-                                  aria-label={`View image for ${record.item}`}
-                                  onClick={() => setPreviewRecord(record)}
-                                  className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                                >
+                                <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
                                   <ImageIcon className="size-3" aria-hidden="true" />
                                   <span>Image</span>
-                                </button>
+                                </span>
                               ) : null}
                             </div>
                             <p className="font-mono text-xs text-slate-500 dark:text-slate-400">
@@ -638,7 +638,10 @@ export function PersonDetailPage() {
                               </p>
                             ) : null}
                           </div>
-                          <div className="flex shrink-0 items-center gap-1">
+                          <div
+                            className="flex shrink-0 items-center gap-1"
+                            onClick={(event) => event.stopPropagation()}
+                          >
                             <Button
                               variant="ghost"
                               size="sm"
@@ -953,27 +956,107 @@ export function PersonDetailPage() {
           </Modal>
 
           <Modal
-            open={Boolean(previewRecord)}
-            onClose={() => setPreviewRecord(null)}
-            title={previewRecord ? previewRecord.item : 'Record image'}
+            open={Boolean(detailRecord)}
+            onClose={() => setDetailRecord(null)}
+            title={detailRecord ? detailRecord.item : 'Record details'}
             description={
-              previewRecord
-                ? `${previewRecord.date} • ${previewRecord.type} ${formatAmount(previewRecord.amount)}`
-                : undefined
+              detailRecord ? `${detailRecord.date} • ${person.name}` : undefined
             }
           >
-            {previewRecord?.imageUrl ? (
-              <div className="space-y-3">
-                <img
-                  src={previewRecord.imageUrl}
-                  alt={`Attachment for ${previewRecord.item}`}
-                  className="max-h-[65dvh] w-full rounded-lg object-contain"
-                />
-                {previewRecord.note ? (
-                  <p className="text-xs text-slate-600 dark:text-slate-400">
-                    {previewRecord.note}
+            {detailRecord ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 rounded-lg border border-slate-200 bg-slate-50/70 p-3 text-sm dark:border-slate-800 dark:bg-slate-950/50">
+                  <div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Type
+                    </p>
+                    <p className="mt-0.5">
+                      <span
+                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                          detailRecord.type === 'Credit'
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                            : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                        }`}
+                      >
+                        {detailRecord.type}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Amount
+                    </p>
+                    <p
+                      className={`mt-0.5 font-mono font-semibold tabular-nums ${
+                        detailRecord.type === 'Credit'
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-rose-600 dark:text-rose-400'
+                      }`}
+                    >
+                      {detailRecord.type === 'Credit' ? '+' : '-'}
+                      {formatAmount(detailRecord.amount)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Date
+                    </p>
+                    <p className="mt-0.5 font-mono text-xs text-slate-900 dark:text-slate-100">
+                      {detailRecord.date}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Running Balance
+                    </p>
+                    <p className="mt-0.5 font-mono font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                      {formatAmount(detailRecord.runningBalance)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    Note
                   </p>
+                  <div className="max-h-56 overflow-y-auto rounded-lg border border-slate-200 bg-white p-3 text-sm whitespace-pre-wrap break-words text-slate-800 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
+                    {detailRecord.note || 'No note provided.'}
+                  </div>
+                </div>
+
+                {detailRecord.imageUrl ? (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Attachment
+                    </p>
+                    <img
+                      src={detailRecord.imageUrl}
+                      alt={`Attachment for ${detailRecord.item}`}
+                      className="max-h-64 w-full rounded-lg border border-slate-200 object-contain dark:border-slate-800"
+                    />
+                  </div>
                 ) : null}
+
+                <div className="flex flex-wrap justify-end gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      const target = detailRecord
+                      setDetailRecord(null)
+                      openEditModal(target)
+                    }}
+                  >
+                    <Pencil className="size-3.5" aria-hidden="true" />
+                    <span>Edit</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => setDetailRecord(null)}
+                  >
+                    Close
+                  </Button>
+                </div>
               </div>
             ) : null}
           </Modal>
