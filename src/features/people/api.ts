@@ -190,6 +190,7 @@ export function usePersonRecords(
         return recordItemSchema.parse({
           id: docSnap.id,
           item: raw.item ?? '',
+          type: raw.type === 'Credit' || raw.type === 'Debit' ? raw.type : 'Debit',
           date: raw.date ?? '',
           amount: typeof raw.amount === 'number' ? raw.amount : 0,
           note: raw.note ?? '',
@@ -214,6 +215,7 @@ export function useCreatePersonRecord(
       const parsed = recordFormSchema.parse(input)
       await addDoc(getRecordsCollection(uid, personId), {
         item: parsed.item,
+        type: parsed.type,
         date: parsed.date,
         amount: parsed.amount,
         note: parsed.note,

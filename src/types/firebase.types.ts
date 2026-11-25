@@ -26,6 +26,7 @@ export interface PersonDocument {
 
 export interface PersonRecordDocument {
   item: string
+  type: 'Credit' | 'Debit'
   date: string
   amount: number
   note: string

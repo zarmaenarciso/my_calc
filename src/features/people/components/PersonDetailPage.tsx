@@ -44,11 +44,13 @@ export function PersonDetailPage() {
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [item, setItem] = useState('')
+  const [type, setType] = useState('')
   const [date, setDate] = useState(getTodayDateString)
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
   const [fieldErrors, setFieldErrors] = useState<{
     item?: string
+    type?: string
     date?: string
     amount?: string
     note?: string
@@ -61,6 +63,7 @@ export function PersonDetailPage() {
 
   const openModal = () => {
     setItem('')
+    setType('')
     setDate(getTodayDateString())
     setAmount('')
     setNote('')
@@ -81,6 +84,7 @@ export function PersonDetailPage() {
 
     const result = recordFormSchema.safeParse({
       item,
+      type,
       date,
       amount,
       note,
@@ -90,6 +94,7 @@ export function PersonDetailPage() {
       const flattened = result.error.flatten().fieldErrors
       setFieldErrors({
         item: flattened.item?.[0],
+        type: flattened.type?.[0],
         date: flattened.date?.[0],
         amount: flattened.amount?.[0],
         note: flattened.note?.[0],
@@ -202,6 +207,15 @@ export function PersonDetailPage() {
                           <span className="font-medium text-slate-900 dark:text-slate-100">
                             {record.item}
                           </span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                              record.type === 'Credit'
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                            }`}
+                          >
+                            {record.type}
+                          </span>
                           <span className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
                             <Calendar className="size-3" aria-hidden="true" />
                             <span>{record.date}</span>
@@ -299,6 +313,40 @@ export function PersonDetailPage() {
                   disabled={createRecord.isPending}
                 />
               )}
+
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="record-type-select"
+                  className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+                >
+                  Type
+                </label>
+                <select
+                  id="record-type-select"
+                  name="type"
+                  value={type}
+                  onChange={(e) => setType(e.target.value)}
+                  disabled={createRecord.isPending}
+                  aria-invalid={Boolean(fieldErrors.type)}
+                  className={`block w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-indigo-500 dark:bg-slate-950 dark:text-slate-100 ${
+                    fieldErrors.type
+                      ? 'border-rose-500 dark:border-rose-500'
+                      : 'border-slate-300 dark:border-slate-700'
+                  }`}
+                >
+                  <option value="">Select a type...</option>
+                  <option value="Credit">Credit</option>
+                  <option value="Debit">Debit</option>
+                </select>
+                {fieldErrors.type ? (
+                  <p
+                    role="alert"
+                    className="text-xs text-rose-600 dark:text-rose-400"
+                  >
+                    {fieldErrors.type}
+                  </p>
+                ) : null}
+              </div>
 
               <Input
                 label="Date"

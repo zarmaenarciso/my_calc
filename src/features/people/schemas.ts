@@ -19,12 +19,17 @@ export const personItemSchema = z.object({
   notes: z.string(),
 })
 
+export const recordTypeSchema = z.enum(['Credit', 'Debit'], {
+  message: 'Please select Credit or Debit.',
+})
+
 export const recordFormSchema = z.object({
   item: z
     .string()
     .trim()
     .min(1, 'Item is required.')
     .max(120, 'Item must be at most 120 characters.'),
+  type: recordTypeSchema,
   date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Please select a valid date.'),
@@ -41,6 +46,7 @@ export const recordFormSchema = z.object({
 export const recordItemSchema = z.object({
   id: z.string().min(1),
   item: z.string(),
+  type: recordTypeSchema,
   date: z.string(),
   amount: z.number(),
   note: z.string(),
