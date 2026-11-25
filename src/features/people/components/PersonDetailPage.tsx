@@ -1,4 +1,4 @@
-import { ArrowLeft, Calendar, FileText, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, FileText, Plus, Trash2 } from 'lucide-react'
 import { type FormEvent, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { Button } from '../../../components/ui/Button'
@@ -23,6 +23,13 @@ import { recordFormSchema } from '../schemas'
 
 function getTodayDateString(): string {
   return new Date().toISOString().slice(0, 10)
+}
+
+function formatAmount(value: number): string {
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
 }
 
 export function PersonDetailPage() {
@@ -56,15 +63,35 @@ export function PersonDetailPage() {
     note?: string
   }>({})
 
-  const totalAmount = useMemo(
-    () =>
-      records.reduce(
-        (sum, record) =>
-          record.type === 'Debit' ? sum - record.amount : sum + record.amount,
-        0,
-      ),
-    [records],
-  )
+  const ledger = useMemo(() => {
+    // Sort chronologically (oldest first) to compute accurate running balances
+    const chronological = [...records].reverse()
+    let runningBalance = 0
+    let totalCredits = 0
+    let totalDebits = 0
+
+    const rows = chronological.map((record) => {
+      if (record.type === 'Debit') {
+        totalDebits += record.amount
+        runningBalance -= record.amount
+      } else {
+        totalCredits += record.amount
+        runningBalance += record.amount
+      }
+
+      return {
+        ...record,
+        runningBalance,
+      }
+    })
+
+    return {
+      rows,
+      totalCredits,
+      totalDebits,
+      netBalance: runningBalance,
+    }
+  }, [records])
 
   const openModal = () => {
     setItem('')
@@ -157,107 +184,238 @@ export function PersonDetailPage() {
             </Button>
           </section>
 
-          <Card>
-            <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <CardTitle>Records ({records.length})</CardTitle>
-                <CardDescription>
-                  Items, dates, amounts, and notes for {person.name}.
-                </CardDescription>
-              </div>
-              <div className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-900 dark:bg-slate-800 dark:text-slate-100">
-                Total: {totalAmount.toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </div>
+          {/* Accountant Summary Strip */}
+          <section
+            aria-label="Account summary"
+            className="grid grid-cols-1 gap-3 sm:grid-cols-3"
+          >
+            <Card className="p-4">
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                Total Credits (+)
+              </p>
+              <p className="mt-1 font-mono text-lg font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                {formatAmount(ledger.totalCredits)}
+              </p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                Total Debits (-)
+              </p>
+              <p className="mt-1 font-mono text-lg font-semibold tabular-nums text-rose-600 dark:text-rose-400">
+                {formatAmount(ledger.totalDebits)}
+              </p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                Net Balance
+              </p>
+              <p className="mt-1 font-mono text-lg font-bold tabular-nums text-slate-900 dark:text-slate-100">
+                {formatAmount(ledger.netBalance)}
+              </p>
+            </Card>
+          </section>
+
+          <Card className="overflow-hidden p-0 sm:p-0">
+            <CardHeader className="mb-0 border-b border-slate-200 px-4 py-4 sm:px-6 dark:border-slate-800">
+              <CardTitle>General Ledger ({records.length})</CardTitle>
+              <CardDescription>
+                Chronological debit/credit entries with running balance for{' '}
+                {person.name}.
+              </CardDescription>
             </CardHeader>
 
-            <CardContent>
+            <CardContent className="space-y-0">
               {isRecordsLoading ? (
-                <p className="py-6 text-center text-sm text-slate-500">
+                <p className="px-4 py-8 text-center text-sm text-slate-500">
                   Loading records…
                 </p>
               ) : isRecordsError ? (
-                <p
-                  role="alert"
-                  className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/50 dark:text-rose-300"
-                >
-                  {recordsError instanceof Error
-                    ? recordsError.message
-                    : 'Failed to load records.'}
-                </p>
-              ) : records.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-300 px-4 py-8 text-center dark:border-slate-700">
-                  <FileText
-                    className="mx-auto size-8 text-slate-400"
-                    aria-hidden="true"
-                  />
-                  <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-                    No records yet
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                    Click &ldquo;Add record&rdquo; to create the first entry.
+                <div className="p-4 sm:p-6">
+                  <p
+                    role="alert"
+                    className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/50 dark:text-rose-300"
+                  >
+                    {recordsError instanceof Error
+                      ? recordsError.message
+                      : 'Failed to load records.'}
                   </p>
                 </div>
+              ) : ledger.rows.length === 0 ? (
+                <div className="p-4 sm:p-6">
+                  <div className="rounded-lg border border-dashed border-slate-300 px-4 py-8 text-center dark:border-slate-700">
+                    <FileText
+                      className="mx-auto size-8 text-slate-400"
+                      aria-hidden="true"
+                    />
+                    <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+                      No records yet
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      Click &ldquo;Add record&rdquo; to create the first entry.
+                    </p>
+                  </div>
+                </div>
               ) : (
-                <ul className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {records.map((record) => (
-                    <li
-                      key={record.id}
-                      className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="min-w-0 space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium text-slate-900 dark:text-slate-100">
-                            {record.item}
-                          </span>
+                <>
+                  {/* Desktop Ledger Table */}
+                  <div className="hidden overflow-x-auto md:block">
+                    <table className="w-full border-collapse text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                          <th className="px-4 py-3">Date</th>
+                          <th className="px-4 py-3">Item / Account</th>
+                          <th className="px-4 py-3">Note</th>
+                          <th className="px-4 py-3 text-right">Debit (-)</th>
+                          <th className="px-4 py-3 text-right">Credit (+)</th>
+                          <th className="px-4 py-3 text-right">Balance</th>
+                          <th className="px-4 py-3 text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                        {ledger.rows.map((record) => (
+                          <tr
+                            key={record.id}
+                            className="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
+                          >
+                            <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400">
+                              {record.date}
+                            </td>
+                            <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
+                              {record.item}
+                            </td>
+                            <td className="max-w-xs break-words px-4 py-3 text-xs text-slate-600 dark:text-slate-400">
+                              {record.note || '—'}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums text-rose-600 dark:text-rose-400">
+                              {record.type === 'Debit'
+                                ? formatAmount(record.amount)
+                                : '—'}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
+                              {record.type === 'Credit'
+                                ? formatAmount(record.amount)
+                                : '—'}
+                            </td>
+                            <td className="whitespace-nowrap px-4 py-3 text-right font-mono font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                              {formatAmount(record.runningBalance)}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                aria-label={`Delete ${record.item}`}
+                                isLoading={
+                                  deleteRecord.isPending &&
+                                  deleteRecord.variables === record.id
+                                }
+                                onClick={() => deleteRecord.mutate(record.id)}
+                                className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/50"
+                              >
+                                <Trash2 className="size-3.5" aria-hidden="true" />
+                                <span>Delete</span>
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t-2 border-slate-300 bg-slate-50/80 font-semibold dark:border-slate-700 dark:bg-slate-950/50">
+                          <td
+                            colSpan={3}
+                            className="px-4 py-3 text-xs uppercase tracking-wider text-slate-600 dark:text-slate-400"
+                          >
+                            Totals ({ledger.rows.length}{' '}
+                            {ledger.rows.length === 1 ? 'entry' : 'entries'})
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums text-rose-600 dark:text-rose-400">
+                            {formatAmount(ledger.totalDebits)}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
+                            {formatAmount(ledger.totalCredits)}
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums text-slate-900 dark:text-slate-100">
+                            {formatAmount(ledger.netBalance)}
+                          </td>
+                          <td className="px-4 py-3" />
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+
+                  {/* Mobile Stacked Ledger */}
+                  <div className="divide-y divide-slate-200 md:hidden dark:divide-slate-800">
+                    {ledger.rows.map((record) => (
+                      <div key={record.id} className="space-y-2 p-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-slate-900 dark:text-slate-100">
+                              {record.item}
+                            </p>
+                            <p className="font-mono text-xs text-slate-500 dark:text-slate-400">
+                              {record.date}
+                              {record.note ? ` • ${record.note}` : ''}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={`Delete ${record.item}`}
+                            isLoading={
+                              deleteRecord.isPending &&
+                              deleteRecord.variables === record.id
+                            }
+                            onClick={() => deleteRecord.mutate(record.id)}
+                            className="shrink-0 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/50"
+                          >
+                            <Trash2 className="size-3.5" aria-hidden="true" />
+                            <span>Delete</span>
+                          </Button>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 text-xs">
                           <span
-                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                            className={`font-mono tabular-nums ${
                               record.type === 'Credit'
-                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                                ? 'text-emerald-600 dark:text-emerald-400'
+                                : 'text-rose-600 dark:text-rose-400'
                             }`}
                           >
-                            {record.type}
+                            {record.type === 'Credit'
+                              ? `Credit: +${formatAmount(record.amount)}`
+                              : `Debit: -${formatAmount(record.amount)}`}
                           </span>
-                          <span className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                            <Calendar className="size-3" aria-hidden="true" />
-                            <span>{record.date}</span>
+                          <span className="font-mono font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                            Bal: {formatAmount(record.runningBalance)}
                           </span>
                         </div>
-                        {record.note ? (
-                          <p className="break-words text-xs text-slate-600 dark:text-slate-400">
-                            {record.note}
-                          </p>
-                        ) : null}
                       </div>
+                    ))}
 
-                      <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
-                        <span className="font-mono text-sm font-semibold text-slate-900 dark:text-slate-100">
-                          {record.amount.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}
+                    <div className="space-y-1.5 bg-slate-50/80 p-4 text-xs dark:bg-slate-950/50">
+                      <div className="flex justify-between">
+                        <span className="text-slate-600 dark:text-slate-400">
+                          Total Debits:
                         </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          aria-label={`Delete ${record.item}`}
-                          isLoading={
-                            deleteRecord.isPending &&
-                            deleteRecord.variables === record.id
-                          }
-                          onClick={() => deleteRecord.mutate(record.id)}
-                          className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/50"
-                        >
-                          <Trash2 className="size-3.5" aria-hidden="true" />
-                          <span>Delete</span>
-                        </Button>
+                        <span className="font-mono tabular-nums text-rose-600 dark:text-rose-400">
+                          {formatAmount(ledger.totalDebits)}
+                        </span>
                       </div>
-                    </li>
-                  ))}
-                </ul>
+                      <div className="flex justify-between">
+                        <span className="text-slate-600 dark:text-slate-400">
+                          Total Credits:
+                        </span>
+                        <span className="font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
+                          {formatAmount(ledger.totalCredits)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t border-slate-200 pt-1.5 text-sm font-semibold dark:border-slate-800">
+                        <span>Net Balance:</span>
+                        <span className="font-mono tabular-nums text-slate-900 dark:text-slate-100">
+                          {formatAmount(ledger.netBalance)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
