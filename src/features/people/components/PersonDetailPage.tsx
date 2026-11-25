@@ -57,7 +57,12 @@ export function PersonDetailPage() {
   }>({})
 
   const totalAmount = useMemo(
-    () => records.reduce((sum, record) => sum + record.amount, 0),
+    () =>
+      records.reduce(
+        (sum, record) =>
+          record.type === 'Debit' ? sum - record.amount : sum + record.amount,
+        0,
+      ),
     [records],
   )
 
