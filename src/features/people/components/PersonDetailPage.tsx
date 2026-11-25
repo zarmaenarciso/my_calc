@@ -1,4 +1,4 @@
-import { ArrowLeft, FileText, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, FileText, Plus, Search, Trash2, X } from 'lucide-react'
 import { type FormEvent, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { Button } from '../../../components/ui/Button'
@@ -63,6 +63,12 @@ export function PersonDetailPage() {
     note?: string
   }>({})
 
+  const [searchQuery, setSearchQuery] = useState('')
+  const [typeFilter, setTypeFilter] = useState<'All' | 'Credit' | 'Debit'>('All')
+  const [itemFilter, setItemFilter] = useState('All')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+
   const ledger = useMemo(() => {
     // Sort chronologically (oldest first) to compute accurate running balances
     const chronological = [...records].reverse()
@@ -92,6 +98,69 @@ export function PersonDetailPage() {
       netBalance: runningBalance,
     }
   }, [records])
+
+  const uniqueItems = useMemo(() => {
+    const items = new Set(records.map((r) => r.item).filter(Boolean))
+    return Array.from(items).sort((a, b) => a.localeCompare(b))
+  }, [records])
+
+  const hasActiveFilters =
+    searchQuery.trim() !== '' ||
+    typeFilter !== 'All' ||
+    itemFilter !== 'All' ||
+    dateFrom !== '' ||
+    dateTo !== ''
+
+  const clearFilters = () => {
+    setSearchQuery('')
+    setTypeFilter('All')
+    setItemFilter('All')
+    setDateFrom('')
+    setDateTo('')
+  }
+
+  const filteredLedger = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    const rows = ledger.rows.filter((record) => {
+      if (typeFilter !== 'All' && record.type !== typeFilter) {
+        return false
+      }
+      if (itemFilter !== 'All' && record.item !== itemFilter) {
+        return false
+      }
+      if (dateFrom && record.date < dateFrom) {
+        return false
+      }
+      if (dateTo && record.date > dateTo) {
+        return false
+      }
+      if (
+        q &&
+        !record.item.toLowerCase().includes(q) &&
+        !record.note.toLowerCase().includes(q)
+      ) {
+        return false
+      }
+      return true
+    })
+
+    let totalCredits = 0
+    let totalDebits = 0
+    for (const record of rows) {
+      if (record.type === 'Debit') {
+        totalDebits += record.amount
+      } else {
+        totalCredits += record.amount
+      }
+    }
+
+    return {
+      rows,
+      totalCredits,
+      totalDebits,
+      netBalance: totalCredits - totalDebits,
+    }
+  }, [ledger.rows, searchQuery, typeFilter, itemFilter, dateFrom, dateTo])
 
   const openModal = () => {
     setItem('')
@@ -216,12 +285,92 @@ export function PersonDetailPage() {
           </section>
 
           <Card className="overflow-hidden p-0 sm:p-0">
-            <CardHeader className="mb-0 border-b border-slate-200 px-4 py-4 sm:px-6 dark:border-slate-800">
-              <CardTitle>General Ledger ({records.length})</CardTitle>
-              <CardDescription>
-                Chronological debit/credit entries with running balance for{' '}
-                {person.name}.
-              </CardDescription>
+            <CardHeader className="mb-0 space-y-4 border-b border-slate-200 px-4 py-4 sm:px-6 dark:border-slate-800">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <CardTitle>
+                    General Ledger (
+                    {hasActiveFilters
+                      ? `${filteredLedger.rows.length} of ${records.length}`
+                      : records.length}
+                    )
+                  </CardTitle>
+                  <CardDescription>
+                    Chronological debit/credit entries with running balance for{' '}
+                    {person.name}.
+                  </CardDescription>
+                </div>
+                {hasActiveFilters ? (
+                  <Button variant="ghost" size="sm" onClick={clearFilters}>
+                    <X className="size-3.5" aria-hidden="true" />
+                    <span>Clear filters</span>
+                  </Button>
+                ) : null}
+              </div>
+
+              {records.length > 0 ? (
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                  <div className="relative sm:col-span-2 lg:col-span-1">
+                    <Search
+                      className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400"
+                      aria-hidden="true"
+                    />
+                    <input
+                      type="search"
+                      aria-label="Search ledger records"
+                      placeholder="Search item or note..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 bg-white py-1.5 pr-3 pl-9 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
+                    />
+                  </div>
+
+                  <select
+                    aria-label="Filter by type"
+                    value={typeFilter}
+                    onChange={(e) =>
+                      setTypeFilter(e.target.value as 'All' | 'Credit' | 'Debit')
+                    }
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                  >
+                    <option value="All">All types</option>
+                    <option value="Credit">Credit only</option>
+                    <option value="Debit">Debit only</option>
+                  </select>
+
+                  <select
+                    aria-label="Filter by item"
+                    value={itemFilter}
+                    onChange={(e) => setItemFilter(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                  >
+                    <option value="All">All items</option>
+                    {uniqueItems.map((itemName) => (
+                      <option key={itemName} value={itemName}>
+                        {itemName}
+                      </option>
+                    ))}
+                  </select>
+
+                  <input
+                    type="date"
+                    aria-label="Filter from date"
+                    title="From date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                  />
+
+                  <input
+                    type="date"
+                    aria-label="Filter to date"
+                    title="To date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                  />
+                </div>
+              ) : null}
             </CardHeader>
 
             <CardContent className="space-y-0">
@@ -240,7 +389,7 @@ export function PersonDetailPage() {
                       : 'Failed to load records.'}
                   </p>
                 </div>
-              ) : ledger.rows.length === 0 ? (
+              ) : filteredLedger.rows.length === 0 ? (
                 <div className="p-4 sm:p-6">
                   <div className="rounded-lg border border-dashed border-slate-300 px-4 py-8 text-center dark:border-slate-700">
                     <FileText
@@ -248,10 +397,14 @@ export function PersonDetailPage() {
                       aria-hidden="true"
                     />
                     <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-                      No records yet
+                      {ledger.rows.length === 0
+                        ? 'No records yet'
+                        : 'No matching records'}
                     </p>
                     <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                      Click &ldquo;Add record&rdquo; to create the first entry.
+                      {ledger.rows.length === 0
+                        ? 'Click "Add record" to create the first entry.'
+                        : 'Try adjusting or clearing your filters.'}
                     </p>
                   </div>
                 </div>
@@ -272,7 +425,7 @@ export function PersonDetailPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                        {ledger.rows.map((record) => (
+                        {filteredLedger.rows.map((record) => (
                           <tr
                             key={record.id}
                             className="transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
@@ -324,17 +477,21 @@ export function PersonDetailPage() {
                             colSpan={3}
                             className="px-4 py-3 text-xs uppercase tracking-wider text-slate-600 dark:text-slate-400"
                           >
-                            Totals ({ledger.rows.length}{' '}
-                            {ledger.rows.length === 1 ? 'entry' : 'entries'})
+                            {hasActiveFilters ? 'Filtered Totals' : 'Totals'} (
+                            {filteredLedger.rows.length}{' '}
+                            {filteredLedger.rows.length === 1
+                              ? 'entry'
+                              : 'entries'}
+                            )
                           </td>
                           <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums text-rose-600 dark:text-rose-400">
-                            {formatAmount(ledger.totalDebits)}
+                            {formatAmount(filteredLedger.totalDebits)}
                           </td>
                           <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
-                            {formatAmount(ledger.totalCredits)}
+                            {formatAmount(filteredLedger.totalCredits)}
                           </td>
                           <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums text-slate-900 dark:text-slate-100">
-                            {formatAmount(ledger.netBalance)}
+                            {formatAmount(filteredLedger.netBalance)}
                           </td>
                           <td className="px-4 py-3" />
                         </tr>
@@ -344,7 +501,7 @@ export function PersonDetailPage() {
 
                   {/* Mobile Stacked Ledger */}
                   <div className="divide-y divide-slate-200 md:hidden dark:divide-slate-800">
-                    {ledger.rows.map((record) => (
+                    {filteredLedger.rows.map((record) => (
                       <div key={record.id} className="space-y-2 p-4">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
@@ -393,24 +550,30 @@ export function PersonDetailPage() {
                     <div className="space-y-1.5 bg-slate-50/80 p-4 text-xs dark:bg-slate-950/50">
                       <div className="flex justify-between">
                         <span className="text-slate-600 dark:text-slate-400">
-                          Total Debits:
+                          {hasActiveFilters
+                            ? 'Filtered Debits:'
+                            : 'Total Debits:'}
                         </span>
                         <span className="font-mono tabular-nums text-rose-600 dark:text-rose-400">
-                          {formatAmount(ledger.totalDebits)}
+                          {formatAmount(filteredLedger.totalDebits)}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-600 dark:text-slate-400">
-                          Total Credits:
+                          {hasActiveFilters
+                            ? 'Filtered Credits:'
+                            : 'Total Credits:'}
                         </span>
                         <span className="font-mono tabular-nums text-emerald-600 dark:text-emerald-400">
-                          {formatAmount(ledger.totalCredits)}
+                          {formatAmount(filteredLedger.totalCredits)}
                         </span>
                       </div>
                       <div className="flex justify-between border-t border-slate-200 pt-1.5 text-sm font-semibold dark:border-slate-800">
-                        <span>Net Balance:</span>
+                        <span>
+                          {hasActiveFilters ? 'Filtered Net:' : 'Net Balance:'}
+                        </span>
                         <span className="font-mono tabular-nums text-slate-900 dark:text-slate-100">
-                          {formatAmount(ledger.netBalance)}
+                          {formatAmount(filteredLedger.netBalance)}
                         </span>
                       </div>
                     </div>
