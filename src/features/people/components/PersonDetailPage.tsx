@@ -525,7 +525,7 @@ export function PersonDetailPage() {
                                 ) : null}
                               </div>
                             </td>
-                            <td className="max-w-xs break-words px-4 py-3 text-xs text-slate-600 dark:text-slate-400">
+                            <td className="max-w-sm whitespace-pre-wrap break-words px-4 py-3 text-xs text-slate-600 dark:text-slate-400">
                               {record.note || '—'}
                             </td>
                             <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums text-rose-600 dark:text-rose-400">
@@ -623,8 +623,12 @@ export function PersonDetailPage() {
                             </div>
                             <p className="font-mono text-xs text-slate-500 dark:text-slate-400">
                               {record.date}
-                              {record.note ? ` • ${record.note}` : ''}
                             </p>
+                            {record.note ? (
+                              <p className="mt-1 whitespace-pre-wrap break-words text-xs text-slate-600 dark:text-slate-400">
+                                {record.note}
+                              </p>
+                            ) : null}
                           </div>
                           <div className="flex shrink-0 items-center gap-1">
                             <Button
@@ -838,12 +842,12 @@ export function PersonDetailPage() {
                 <textarea
                   id="record-note"
                   name="note"
-                  rows={3}
+                  rows={5}
                   placeholder="Optional note"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   disabled={isSavingRecord}
-                  className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs placeholder:text-slate-400 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
+                  className="block w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs placeholder:text-slate-400 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
                 />
                 {fieldErrors.note ? (
                   <p

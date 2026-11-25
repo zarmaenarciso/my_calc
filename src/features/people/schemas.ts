@@ -39,7 +39,7 @@ export const recordFormSchema = z.object({
   note: z
     .string()
     .trim()
-    .max(500, 'Note must be at most 500 characters.')
+    .max(10_000, 'Note must be at most 10,000 characters.')
     .default(''),
   imageUrl: z
     .string()
