@@ -1,5 +1,15 @@
-import { ArrowLeft, FileText, Plus, Search, Trash2, X } from 'lucide-react'
-import { type FormEvent, useMemo, useState } from 'react'
+import {
+  ArrowLeft,
+  FileText,
+  Image as ImageIcon,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react'
+import { type ChangeEvent, type FormEvent, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { Button } from '../../../components/ui/Button'
 import {
@@ -11,6 +21,7 @@ import {
 } from '../../../components/ui/Card'
 import { Input } from '../../../components/ui/Input'
 import { Modal } from '../../../components/ui/Modal'
+import { compressImageToDataUrl } from '../../../lib/image'
 import { useAuthSession } from '../../auth/api'
 import { useBanks } from '../../banks/api'
 import {
@@ -18,8 +29,9 @@ import {
   useDeletePersonRecord,
   usePerson,
   usePersonRecords,
+  useUpdatePersonRecord,
 } from '../api'
-import { recordFormSchema } from '../schemas'
+import { recordFormSchema, type RecordItem } from '../schemas'
 
 function getTodayDateString(): string {
   return new Date().toISOString().slice(0, 10)
@@ -47,20 +59,27 @@ export function PersonDetailPage() {
   } = usePersonRecords(uid, personId)
 
   const createRecord = useCreatePersonRecord(uid, personId)
+  const updateRecord = useUpdatePersonRecord(uid, personId)
   const deleteRecord = useDeletePersonRecord(uid, personId)
 
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingRecord, setEditingRecord] = useState<RecordItem | null>(null)
+  const [previewRecord, setPreviewRecord] = useState<RecordItem | null>(null)
+
   const [item, setItem] = useState('')
   const [type, setType] = useState('')
   const [date, setDate] = useState(getTodayDateString)
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [isCompressingImage, setIsCompressingImage] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<{
     item?: string
     type?: string
     date?: string
     amount?: string
     note?: string
+    imageUrl?: string
   }>({})
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -162,20 +181,63 @@ export function PersonDetailPage() {
     }
   }, [ledger.rows, searchQuery, typeFilter, itemFilter, dateFrom, dateTo])
 
+  const isSavingRecord = createRecord.isPending || updateRecord.isPending
+
   const openModal = () => {
+    setEditingRecord(null)
     setItem('')
     setType('')
     setDate(getTodayDateString())
     setAmount('')
     setNote('')
+    setImageUrl(null)
     setFieldErrors({})
     createRecord.reset()
+    updateRecord.reset()
+    setIsModalOpen(true)
+  }
+
+  const openEditModal = (record: RecordItem) => {
+    setEditingRecord(record)
+    setItem(record.item)
+    setType(record.type)
+    setDate(record.date)
+    setAmount(String(record.amount))
+    setNote(record.note)
+    setImageUrl(record.imageUrl)
+    setFieldErrors({})
+    createRecord.reset()
+    updateRecord.reset()
     setIsModalOpen(true)
   }
 
   const closeModal = () => {
-    if (!createRecord.isPending) {
+    if (!isSavingRecord && !isCompressingImage) {
       setIsModalOpen(false)
+      setEditingRecord(null)
+    }
+  }
+
+  const handleImageChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) {
+      return
+    }
+
+    setFieldErrors((prev) => ({ ...prev, imageUrl: undefined }))
+    setIsCompressingImage(true)
+    try {
+      const compressed = await compressImageToDataUrl(file)
+      setImageUrl(compressed)
+    } catch (err) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        imageUrl:
+          err instanceof Error ? err.message : 'Failed to process image.',
+      }))
+    } finally {
+      setIsCompressingImage(false)
+      event.target.value = ''
     }
   }
 
@@ -189,6 +251,7 @@ export function PersonDetailPage() {
       date,
       amount,
       note,
+      imageUrl,
     })
 
     if (!result.success) {
@@ -199,15 +262,28 @@ export function PersonDetailPage() {
         date: flattened.date?.[0],
         amount: flattened.amount?.[0],
         note: flattened.note?.[0],
+        imageUrl: flattened.imageUrl?.[0],
       })
       return
     }
 
-    createRecord.mutate(result.data, {
-      onSuccess: () => {
-        setIsModalOpen(false)
-      },
-    })
+    if (editingRecord) {
+      updateRecord.mutate(
+        { recordId: editingRecord.id, ...result.data },
+        {
+          onSuccess: () => {
+            setIsModalOpen(false)
+            setEditingRecord(null)
+          },
+        },
+      )
+    } else {
+      createRecord.mutate(result.data, {
+        onSuccess: () => {
+          setIsModalOpen(false)
+        },
+      })
+    }
   }
 
   return (
@@ -434,7 +510,20 @@ export function PersonDetailPage() {
                               {record.date}
                             </td>
                             <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
-                              {record.item}
+                              <div className="flex items-center gap-2">
+                                <span>{record.item}</span>
+                                {record.imageUrl ? (
+                                  <button
+                                    type="button"
+                                    aria-label={`View image for ${record.item}`}
+                                    onClick={() => setPreviewRecord(record)}
+                                    className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-600 transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                                  >
+                                    <ImageIcon className="size-3" aria-hidden="true" />
+                                    <span>Image</span>
+                                  </button>
+                                ) : null}
+                              </div>
                             </td>
                             <td className="max-w-xs break-words px-4 py-3 text-xs text-slate-600 dark:text-slate-400">
                               {record.note || '—'}
@@ -453,20 +542,31 @@ export function PersonDetailPage() {
                               {formatAmount(record.runningBalance)}
                             </td>
                             <td className="px-4 py-3 text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                aria-label={`Delete ${record.item}`}
-                                isLoading={
-                                  deleteRecord.isPending &&
-                                  deleteRecord.variables === record.id
-                                }
-                                onClick={() => deleteRecord.mutate(record.id)}
-                                className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/50"
-                              >
-                                <Trash2 className="size-3.5" aria-hidden="true" />
-                                <span>Delete</span>
-                              </Button>
+                              <div className="inline-flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  aria-label={`Edit ${record.item}`}
+                                  onClick={() => openEditModal(record)}
+                                >
+                                  <Pencil className="size-3.5" aria-hidden="true" />
+                                  <span>Edit</span>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  aria-label={`Delete ${record.item}`}
+                                  isLoading={
+                                    deleteRecord.isPending &&
+                                    deleteRecord.variables === record.id
+                                  }
+                                  onClick={() => deleteRecord.mutate(record.id)}
+                                  className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/50"
+                                >
+                                  <Trash2 className="size-3.5" aria-hidden="true" />
+                                  <span>Delete</span>
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -505,28 +605,52 @@ export function PersonDetailPage() {
                       <div key={record.id} className="space-y-2 p-4">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="truncate font-medium text-slate-900 dark:text-slate-100">
-                              {record.item}
-                            </p>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="truncate font-medium text-slate-900 dark:text-slate-100">
+                                {record.item}
+                              </p>
+                              {record.imageUrl ? (
+                                <button
+                                  type="button"
+                                  aria-label={`View image for ${record.item}`}
+                                  onClick={() => setPreviewRecord(record)}
+                                  className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                                >
+                                  <ImageIcon className="size-3" aria-hidden="true" />
+                                  <span>Image</span>
+                                </button>
+                              ) : null}
+                            </div>
                             <p className="font-mono text-xs text-slate-500 dark:text-slate-400">
                               {record.date}
                               {record.note ? ` • ${record.note}` : ''}
                             </p>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            aria-label={`Delete ${record.item}`}
-                            isLoading={
-                              deleteRecord.isPending &&
-                              deleteRecord.variables === record.id
-                            }
-                            onClick={() => deleteRecord.mutate(record.id)}
-                            className="shrink-0 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/50"
-                          >
-                            <Trash2 className="size-3.5" aria-hidden="true" />
-                            <span>Delete</span>
-                          </Button>
+                          <div className="flex shrink-0 items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`Edit ${record.item}`}
+                              onClick={() => openEditModal(record)}
+                            >
+                              <Pencil className="size-3.5" aria-hidden="true" />
+                              <span>Edit</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label={`Delete ${record.item}`}
+                              isLoading={
+                                deleteRecord.isPending &&
+                                deleteRecord.variables === record.id
+                              }
+                              onClick={() => deleteRecord.mutate(record.id)}
+                              className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/50"
+                            >
+                              <Trash2 className="size-3.5" aria-hidden="true" />
+                              <span>Delete</span>
+                            </Button>
+                          </div>
                         </div>
                         <div className="flex items-center justify-between gap-2 text-xs">
                           <span
@@ -586,8 +710,12 @@ export function PersonDetailPage() {
           <Modal
             open={isModalOpen}
             onClose={closeModal}
-            title="Add new record"
-            description={`Add a record for ${person.name}.`}
+            title={editingRecord ? 'Edit record' : 'Add new record'}
+            description={
+              editingRecord
+                ? `Update this record for ${person.name}.`
+                : `Add a record for ${person.name}.`
+            }
           >
             <form onSubmit={handleSubmit} noValidate className="space-y-4">
               {banks.length > 0 ? (
@@ -603,7 +731,7 @@ export function PersonDetailPage() {
                     name="item"
                     value={item}
                     onChange={(e) => setItem(e.target.value)}
-                    disabled={createRecord.isPending}
+                    disabled={isSavingRecord}
                     aria-invalid={Boolean(fieldErrors.item)}
                     className={`block w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-indigo-500 dark:bg-slate-950 dark:text-slate-100 ${
                       fieldErrors.item
@@ -612,6 +740,9 @@ export function PersonDetailPage() {
                     }`}
                   >
                     <option value="">Select a bank...</option>
+                    {item && !banks.some((bank) => bank.name === item) ? (
+                      <option value={item}>{item}</option>
+                    ) : null}
                     {banks.map((bank) => (
                       <option key={bank.id} value={bank.name}>
                         {bank.name}
@@ -636,7 +767,7 @@ export function PersonDetailPage() {
                   value={item}
                   onChange={(e) => setItem(e.target.value)}
                   error={fieldErrors.item}
-                  disabled={createRecord.isPending}
+                  disabled={isSavingRecord}
                 />
               )}
 
@@ -652,7 +783,7 @@ export function PersonDetailPage() {
                   name="type"
                   value={type}
                   onChange={(e) => setType(e.target.value)}
-                  disabled={createRecord.isPending}
+                  disabled={isSavingRecord}
                   aria-invalid={Boolean(fieldErrors.type)}
                   className={`block w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-indigo-500 dark:bg-slate-950 dark:text-slate-100 ${
                     fieldErrors.type
@@ -681,7 +812,7 @@ export function PersonDetailPage() {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 error={fieldErrors.date}
-                disabled={createRecord.isPending}
+                disabled={isSavingRecord}
               />
 
               <Input
@@ -694,7 +825,7 @@ export function PersonDetailPage() {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 error={fieldErrors.amount}
-                disabled={createRecord.isPending}
+                disabled={isSavingRecord}
               />
 
               <div className="space-y-1.5">
@@ -711,7 +842,7 @@ export function PersonDetailPage() {
                   placeholder="Optional note"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  disabled={createRecord.isPending}
+                  disabled={isSavingRecord}
                   className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs placeholder:text-slate-400 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-indigo-500 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500"
                 />
                 {fieldErrors.note ? (
@@ -724,13 +855,67 @@ export function PersonDetailPage() {
                 ) : null}
               </div>
 
-              {createRecord.isError ? (
+              <div className="space-y-2">
+                <span className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Image (optional)
+                </span>
+                {imageUrl ? (
+                  <div className="space-y-2 rounded-lg border border-slate-200 p-2 dark:border-slate-800">
+                    <img
+                      src={imageUrl}
+                      alt="Uploaded record attachment"
+                      className="max-h-40 w-full rounded-md object-contain"
+                    />
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setImageUrl(null)}
+                        disabled={isSavingRecord}
+                        className="text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/50"
+                      >
+                        <X className="size-3.5" aria-hidden="true" />
+                        <span>Remove image</span>
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:border-indigo-400 hover:text-indigo-600 dark:border-slate-700 dark:text-slate-400 dark:hover:border-indigo-500 dark:hover:text-indigo-400">
+                  <Upload className="size-4" aria-hidden="true" />
+                  <span>
+                    {isCompressingImage
+                      ? 'Processing image…'
+                      : imageUrl
+                        ? 'Replace image'
+                        : 'Upload image'}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    disabled={isSavingRecord || isCompressingImage}
+                    className="sr-only"
+                  />
+                </label>
+                {fieldErrors.imageUrl ? (
+                  <p
+                    role="alert"
+                    className="text-xs text-rose-600 dark:text-rose-400"
+                  >
+                    {fieldErrors.imageUrl}
+                  </p>
+                ) : null}
+              </div>
+
+              {createRecord.isError || updateRecord.isError ? (
                 <p
                   role="alert"
                   className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/50 dark:text-rose-300"
                 >
-                  {createRecord.error instanceof Error
-                    ? createRecord.error.message
+                  {(editingRecord ? updateRecord.error : createRecord.error) instanceof Error
+                    ? ((editingRecord ? updateRecord.error : createRecord.error) as Error)
+                        .message
                     : 'Failed to save record.'}
                 </p>
               ) : null}
@@ -740,15 +925,45 @@ export function PersonDetailPage() {
                   type="button"
                   variant="ghost"
                   onClick={closeModal}
-                  disabled={createRecord.isPending}
+                  disabled={isSavingRecord || isCompressingImage}
                 >
                   Cancel
                 </Button>
-                <Button type="submit" isLoading={createRecord.isPending}>
-                  Save record
+                <Button
+                  type="submit"
+                  isLoading={isSavingRecord}
+                  disabled={isCompressingImage}
+                >
+                  {editingRecord ? 'Save changes' : 'Save record'}
                 </Button>
               </div>
             </form>
+          </Modal>
+
+          <Modal
+            open={Boolean(previewRecord)}
+            onClose={() => setPreviewRecord(null)}
+            title={previewRecord ? previewRecord.item : 'Record image'}
+            description={
+              previewRecord
+                ? `${previewRecord.date} • ${previewRecord.type} ${formatAmount(previewRecord.amount)}`
+                : undefined
+            }
+          >
+            {previewRecord?.imageUrl ? (
+              <div className="space-y-3">
+                <img
+                  src={previewRecord.imageUrl}
+                  alt={`Attachment for ${previewRecord.item}`}
+                  className="max-h-[65dvh] w-full rounded-lg object-contain"
+                />
+                {previewRecord.note ? (
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                    {previewRecord.note}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </Modal>
         </>
       )}

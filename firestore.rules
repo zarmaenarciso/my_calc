@@ -55,7 +55,7 @@ service cloud.firestore {
         allow create, update: if isSuperUser() || (
           isSignedIn()
           && request.auth.uid == userId
-          && request.resource.data.keys().hasOnly(['item', 'type', 'date', 'amount', 'note', 'createdAt', 'updatedAt'])
+          && request.resource.data.keys().hasOnly(['item', 'type', 'date', 'amount', 'note', 'imageUrl', 'createdAt', 'updatedAt'])
         );
       }
     }

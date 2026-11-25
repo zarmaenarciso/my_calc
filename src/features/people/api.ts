@@ -194,6 +194,7 @@ export function usePersonRecords(
           date: raw.date ?? '',
           amount: typeof raw.amount === 'number' ? raw.amount : 0,
           note: raw.note ?? '',
+          imageUrl: typeof raw.imageUrl === 'string' ? raw.imageUrl : null,
         })
       })
     },
@@ -219,9 +220,49 @@ export function useCreatePersonRecord(
         date: parsed.date,
         amount: parsed.amount,
         note: parsed.note,
+        imageUrl: parsed.imageUrl,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       })
+    },
+    onSuccess: () => {
+      if (uid && personId) {
+        void queryClient.invalidateQueries({
+          queryKey: peopleKeys.records(uid, personId),
+        })
+      }
+    },
+  })
+}
+
+export function useUpdatePersonRecord(
+  uid: string | undefined,
+  personId: string | undefined,
+) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      recordId,
+      ...input
+    }: RecordFormInput & { recordId: string }) => {
+      if (!uid || !personId) {
+        throw new Error('Missing user or person context.')
+      }
+
+      const parsed = recordFormSchema.parse(input)
+      await updateDoc(
+        doc(db, 'users', uid, 'people', personId, 'records', recordId),
+        {
+          item: parsed.item,
+          type: parsed.type,
+          date: parsed.date,
+          amount: parsed.amount,
+          note: parsed.note,
+          imageUrl: parsed.imageUrl,
+          updatedAt: serverTimestamp(),
+        },
+      )
     },
     onSuccess: () => {
       if (uid && personId) {

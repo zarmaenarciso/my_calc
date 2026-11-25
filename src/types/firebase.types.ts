@@ -30,6 +30,7 @@ export interface PersonRecordDocument {
   date: string
   amount: number
   note: string
+  imageUrl?: string | null
   createdAt?: Timestamp
   updatedAt?: Timestamp
 }

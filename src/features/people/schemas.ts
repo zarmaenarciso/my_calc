@@ -41,6 +41,12 @@ export const recordFormSchema = z.object({
     .trim()
     .max(500, 'Note must be at most 500 characters.')
     .default(''),
+  imageUrl: z
+    .string()
+    .max(500_000, 'Image is too large. Please choose a smaller image.')
+    .nullable()
+    .optional()
+    .default(null),
 })
 
 export const recordItemSchema = z.object({
@@ -50,6 +56,7 @@ export const recordItemSchema = z.object({
   date: z.string(),
   amount: z.number(),
   note: z.string(),
+  imageUrl: z.string().nullable(),
 })
 
 export type PersonFormInput = z.input<typeof personFormSchema>
