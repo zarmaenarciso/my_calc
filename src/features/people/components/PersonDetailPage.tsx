@@ -525,8 +525,13 @@ export function PersonDetailPage() {
                                 ) : null}
                               </div>
                             </td>
-                            <td className="max-w-sm whitespace-pre-wrap break-words px-4 py-3 text-xs text-slate-600 dark:text-slate-400">
-                              {record.note || '—'}
+                            <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-400">
+                              <p
+                                title={record.note || undefined}
+                                className="max-w-[240px] line-clamp-2 break-words"
+                              >
+                                {record.note || '—'}
+                              </p>
                             </td>
                             <td className="whitespace-nowrap px-4 py-3 text-right font-mono tabular-nums text-rose-600 dark:text-rose-400">
                               {record.type === 'Debit'
@@ -625,7 +630,10 @@ export function PersonDetailPage() {
                               {record.date}
                             </p>
                             {record.note ? (
-                              <p className="mt-1 whitespace-pre-wrap break-words text-xs text-slate-600 dark:text-slate-400">
+                              <p
+                                title={record.note}
+                                className="mt-1 line-clamp-2 break-words text-xs text-slate-600 dark:text-slate-400"
+                              >
                                 {record.note}
                               </p>
                             ) : null}
