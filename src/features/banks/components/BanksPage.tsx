@@ -1,4 +1,4 @@
-import { Landmark, Plus, Trash2 } from 'lucide-react'
+import { Landmark, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { Button } from '../../../components/ui/Button'
 import {
@@ -10,8 +10,8 @@ import {
 } from '../../../components/ui/Card'
 import { Input } from '../../../components/ui/Input'
 import { useAuthSession } from '../../auth/api'
-import { useBanks, useCreateBank, useDeleteBank } from '../api'
-import { bankFormSchema } from '../schemas'
+import { useBanks, useCreateBank, useDeleteBank, useUpdateBank } from '../api'
+import { type BankItem, bankFormSchema } from '../schemas'
 
 export function BanksPage() {
   const { data: auth } = useAuthSession()
@@ -19,10 +19,47 @@ export function BanksPage() {
 
   const { data: banks = [], isLoading, isError, error } = useBanks(uid)
   const createBank = useCreateBank(uid)
+  const updateBank = useUpdateBank(uid)
   const deleteBank = useDeleteBank(uid)
 
   const [name, setName] = useState('')
   const [nameError, setNameError] = useState<string | undefined>()
+
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editError, setEditError] = useState<string | undefined>()
+
+  const startEditing = (bank: BankItem) => {
+    setEditingId(bank.id)
+    setEditName(bank.name)
+    setEditError(undefined)
+    updateBank.reset()
+  }
+
+  const cancelEditing = () => {
+    setEditingId(null)
+    setEditError(undefined)
+  }
+
+  const handleEditSubmit = (event: FormEvent<HTMLFormElement>, id: string) => {
+    event.preventDefault()
+    setEditError(undefined)
+
+    const result = bankFormSchema.safeParse({ name: editName })
+    if (!result.success) {
+      setEditError(result.error.flatten().fieldErrors.name?.[0])
+      return
+    }
+
+    updateBank.mutate(
+      { id, ...result.data },
+      {
+        onSuccess: () => {
+          setEditingId(null)
+        },
+      },
+    )
+  }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -126,36 +163,97 @@ export function BanksPage() {
             </div>
           ) : (
             <ul className="divide-y divide-slate-200 dark:divide-slate-800">
-              {banks.map((bank) => (
-                <li
-                  key={bank.id}
-                  className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
-                >
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <Landmark
-                      className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400"
-                      aria-hidden="true"
-                    />
-                    <span className="truncate font-medium text-slate-900 dark:text-slate-100">
-                      {bank.name}
-                    </span>
-                  </div>
+              {banks.map((bank) => {
+                const isEditing = editingId === bank.id
 
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label={`Delete ${bank.name}`}
-                    isLoading={
-                      deleteBank.isPending && deleteBank.variables === bank.id
-                    }
-                    onClick={() => deleteBank.mutate(bank.id)}
-                    className="shrink-0 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/50"
-                  >
-                    <Trash2 className="size-3.5" aria-hidden="true" />
-                    <span>Delete</span>
-                  </Button>
-                </li>
-              ))}
+                return (
+                  <li key={bank.id} className="py-3 first:pt-0 last:pb-0">
+                    {isEditing ? (
+                      <form
+                        onSubmit={(e) => handleEditSubmit(e, bank.id)}
+                        noValidate
+                        className="space-y-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50"
+                      >
+                        <Input
+                          label="Bank name"
+                          type="text"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          error={editError}
+                          disabled={updateBank.isPending}
+                        />
+                        {updateBank.isError ? (
+                          <p
+                            role="alert"
+                            className="text-xs text-rose-600 dark:text-rose-400"
+                          >
+                            {updateBank.error instanceof Error
+                              ? updateBank.error.message
+                              : 'Failed to update bank.'}
+                          </p>
+                        ) : null}
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="submit"
+                            size="sm"
+                            isLoading={updateBank.isPending}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={cancelEditing}
+                            disabled={updateBank.isPending}
+                          >
+                            <X className="size-3.5" aria-hidden="true" />
+                            <span>Cancel</span>
+                          </Button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <Landmark
+                            className="size-4 shrink-0 text-indigo-600 dark:text-indigo-400"
+                            aria-hidden="true"
+                          />
+                          <span className="truncate font-medium text-slate-900 dark:text-slate-100">
+                            {bank.name}
+                          </span>
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={`Edit ${bank.name}`}
+                            onClick={() => startEditing(bank)}
+                          >
+                            <Pencil className="size-3.5" aria-hidden="true" />
+                            <span>Edit</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={`Delete ${bank.name}`}
+                            isLoading={
+                              deleteBank.isPending &&
+                              deleteBank.variables === bank.id
+                            }
+                            onClick={() => deleteBank.mutate(bank.id)}
+                            className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/50"
+                          >
+                            <Trash2 className="size-3.5" aria-hidden="true" />
+                            <span>Delete</span>
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           )}
         </CardContent>

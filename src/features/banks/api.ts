@@ -8,6 +8,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  updateDoc,
 } from 'firebase/firestore'
 import { db, isFirebaseConfigured } from '../../lib/firebase'
 import type { BankDocument } from '../../types/firebase.types'
@@ -62,6 +63,29 @@ export function useCreateBank(uid: string | undefined) {
       await addDoc(getBanksCollection(uid), {
         name: parsed.name,
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    },
+    onSuccess: () => {
+      if (uid) {
+        void queryClient.invalidateQueries({ queryKey: banksKeys.list(uid) })
+      }
+    },
+  })
+}
+
+export function useUpdateBank(uid: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ id, name }: BankFormInput & { id: string }) => {
+      if (!uid) {
+        throw new Error('You must be signed in to update a bank.')
+      }
+
+      const parsed = bankFormSchema.parse({ name })
+      await updateDoc(doc(db, 'users', uid, 'banks', id), {
+        name: parsed.name,
         updatedAt: serverTimestamp(),
       })
     },
