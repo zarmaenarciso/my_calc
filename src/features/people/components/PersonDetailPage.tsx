@@ -1,5 +1,8 @@
 import {
+  ArrowDown,
   ArrowLeft,
+  ArrowUp,
+  ArrowUpDown,
   FileText,
   Image as ImageIcon,
   Pencil,
@@ -89,6 +92,10 @@ export function PersonDetailPage() {
   const [itemFilter, setItemFilter] = useState('All')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [sortKey, setSortKey] = useState<
+    'date' | 'item' | 'note' | 'debit' | 'credit' | 'balance'
+  >('date')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
   const ledger = useMemo(() => {
     // Sort chronologically (oldest first) to compute accurate running balances
@@ -140,9 +147,24 @@ export function PersonDetailPage() {
     setDateTo('')
   }
 
+  const toggleSort = (
+    key: 'date' | 'item' | 'note' | 'debit' | 'credit' | 'balance',
+  ) => {
+    if (sortKey === key) {
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortKey(key)
+      setSortDir(
+        key === 'debit' || key === 'credit' || key === 'balance'
+          ? 'desc'
+          : 'asc',
+      )
+    }
+  }
+
   const filteredLedger = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
-    const rows = ledger.rows.filter((record) => {
+    const filtered = ledger.rows.filter((record) => {
       if (typeFilter !== 'All' && record.type !== typeFilter) {
         return false
       }
@@ -165,6 +187,35 @@ export function PersonDetailPage() {
       return true
     })
 
+    const rows = [...filtered].sort((a, b) => {
+      let cmp = 0
+      switch (sortKey) {
+        case 'date':
+          cmp = a.date.localeCompare(b.date)
+          break
+        case 'item':
+          cmp = a.item.localeCompare(b.item)
+          break
+        case 'note':
+          cmp = a.note.localeCompare(b.note)
+          break
+        case 'debit':
+          cmp =
+            (a.type === 'Debit' ? a.amount : 0) -
+            (b.type === 'Debit' ? b.amount : 0)
+          break
+        case 'credit':
+          cmp =
+            (a.type === 'Credit' ? a.amount : 0) -
+            (b.type === 'Credit' ? b.amount : 0)
+          break
+        case 'balance':
+          cmp = a.runningBalance - b.runningBalance
+          break
+      }
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+
     let totalCredits = 0
     let totalDebits = 0
     for (const record of rows) {
@@ -181,7 +232,16 @@ export function PersonDetailPage() {
       totalDebits,
       netBalance: totalCredits - totalDebits,
     }
-  }, [ledger.rows, searchQuery, typeFilter, itemFilter, dateFrom, dateTo])
+  }, [
+    ledger.rows,
+    searchQuery,
+    typeFilter,
+    itemFilter,
+    dateFrom,
+    dateTo,
+    sortKey,
+    sortDir,
+  ])
 
   const isSavingRecord = createRecord.isPending || updateRecord.isPending
 
@@ -493,12 +553,75 @@ export function PersonDetailPage() {
                     <table className="w-full border-collapse text-left text-sm">
                       <thead>
                         <tr className="border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                          <th className="px-4 py-3">Date</th>
-                          <th className="px-4 py-3">Item / Account</th>
-                          <th className="px-4 py-3">Note</th>
-                          <th className="px-4 py-3 text-right">Debit (-)</th>
-                          <th className="px-4 py-3 text-right">Credit (+)</th>
-                          <th className="px-4 py-3 text-right">Balance</th>
+                          {(
+                            [
+                              { key: 'date', label: 'Date', align: 'left' },
+                              {
+                                key: 'item',
+                                label: 'Item / Account',
+                                align: 'left',
+                              },
+                              { key: 'note', label: 'Note', align: 'left' },
+                              {
+                                key: 'debit',
+                                label: 'Debit (-)',
+                                align: 'right',
+                              },
+                              {
+                                key: 'credit',
+                                label: 'Credit (+)',
+                                align: 'right',
+                              },
+                              {
+                                key: 'balance',
+                                label: 'Balance',
+                                align: 'right',
+                              },
+                            ] as const
+                          ).map((col) => {
+                            const isActive = sortKey === col.key
+                            const SortIcon = !isActive
+                              ? ArrowUpDown
+                              : sortDir === 'asc'
+                                ? ArrowUp
+                                : ArrowDown
+
+                            return (
+                              <th
+                                key={col.key}
+                                aria-sort={
+                                  isActive
+                                    ? sortDir === 'asc'
+                                      ? 'ascending'
+                                      : 'descending'
+                                    : 'none'
+                                }
+                                className={`px-4 py-3 ${
+                                  col.align === 'right' ? 'text-right' : ''
+                                }`}
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => toggleSort(col.key)}
+                                  className={`inline-flex items-center gap-1 uppercase transition-colors hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:hover:text-slate-100 ${
+                                    col.align === 'right'
+                                      ? 'flex-row-reverse'
+                                      : ''
+                                  } ${
+                                    isActive
+                                      ? 'text-indigo-600 dark:text-indigo-400'
+                                      : ''
+                                  }`}
+                                >
+                                  <span>{col.label}</span>
+                                  <SortIcon
+                                    className="size-3.5 shrink-0"
+                                    aria-hidden="true"
+                                  />
+                                </button>
+                              </th>
+                            )
+                          })}
                           <th className="px-4 py-3 text-right">Action</th>
                         </tr>
                       </thead>
